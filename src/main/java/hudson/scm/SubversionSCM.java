@@ -852,13 +852,11 @@ public class SubversionSCM extends SCM implements Serializable {
             }
         }
         
-        List<External> externals = new ArrayList<External>();
         ModuleLocation[] expandedLocations = getLocations(env, build);
         
         int numberOfExecutors = Math.min(4, expandedLocations.length);
         
         final ExecutorService service;
-        
         if (numberOfExecutors > 1) {
         	 service = Executors.newFixedThreadPool(numberOfExecutors);
         	 listener.getLogger().println("checking out/updating with " + numberOfExecutors + " parallel threads");
@@ -878,6 +876,8 @@ public class SubversionSCM extends SCM implements Serializable {
         
         List<Future<List<External>>> futures = service.invokeAll(callables);
         
+        List<External> externals = new ArrayList<External>();
+        
         for (Future<List<External>> future : futures) {
         	
             try {
@@ -885,18 +885,15 @@ public class SubversionSCM extends SCM implements Serializable {
 			} catch (ExecutionException e) {
 				throw new IOException2(e);
 			}
-            // olamy: remove null check as it causes test failure
-            // see https://github.com/jenkinsci/subversion-plugin/commit/de23a2b781b7b86f41319977ce4c11faee75179b#commitcomment-1551273
-            /*if ( externalsFound != null ){
-                externals.addAll(externalsFound);
-            } else {
-                externals.addAll( new ArrayList<External>( 0 ) );
-            }*/
         }
+        service.shutdownNow();
 
         return externals;
     }
     
+    /**
+     * Simple {@link ExecutorService} which executes everything in the caller thread.
+     */
     private static class CurrentThreadExecutorService extends AbstractExecutorService {
 
     	private boolean terminated = false;
