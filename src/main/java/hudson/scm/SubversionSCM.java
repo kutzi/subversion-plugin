@@ -67,6 +67,7 @@ import hudson.scm.subversion.WorkspaceUpdater.UpdateTask;
 import hudson.scm.subversion.WorkspaceUpdaterDescriptor;
 import hudson.util.EditDistance;
 import hudson.util.FormValidation;
+import hudson.util.IOException2;
 import hudson.util.LogTaskListener;
 import hudson.util.MultipartFormDataParser;
 import hudson.util.Scrambler;
@@ -101,6 +102,12 @@ import java.util.Random;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.UUID;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -158,6 +165,7 @@ import org.tmatesoft.svn.core.wc.SVNRevision;
 import org.tmatesoft.svn.core.wc.SVNWCClient;
 import org.tmatesoft.svn.core.wc.SVNWCUtil;
 
+import com.google.common.collect.Lists;
 import com.thoughtworks.xstream.XStream;
 import com.trilead.ssh2.DebugLogger;
 import com.trilead.ssh2.SCPClient;
@@ -827,7 +835,7 @@ public class SubversionSCM extends SCM implements Serializable {
      *      if the operation failed. Otherwise the set of local workspace paths
      *      (relative to the workspace root) that has loaded due to svn:external.
      */
-    private List<External> checkout(AbstractBuild build, FilePath workspace, TaskListener listener, EnvVars env) throws IOException, InterruptedException {
+    private List<External> checkout(final AbstractBuild build, final FilePath workspace, final TaskListener listener, final EnvVars env) throws IOException, InterruptedException {
         if (repositoryLocationsNoLongerExist(build, listener, env)) {
             Run lsb = build.getProject().getLastSuccessfulBuild();
             if (lsb != null && build.getNumber()-lsb.getNumber()>10
@@ -845,9 +853,39 @@ public class SubversionSCM extends SCM implements Serializable {
         }
         
         List<External> externals = new ArrayList<External>();
-        for (ModuleLocation location : getLocations(env, build)) {
-            externals.addAll( workspace.act(new CheckOutTask(build, this, location, build.getTimestamp().getTime(), listener, env)));
-            // olamy: remove null check at it cause test failure
+        ModuleLocation[] expandedLocations = getLocations(env, build);
+        
+        int numberOfExecutors = Math.min(4, expandedLocations.length);
+        
+        final ExecutorService service;
+        
+        if (numberOfExecutors > 1) {
+        	 service = Executors.newFixedThreadPool(numberOfExecutors);
+        	 listener.getLogger().println("checking out/updating with " + numberOfExecutors + " parallel threads");
+        } else {
+        	 service = new CurrentThreadExecutorService();
+        }
+        
+        List<java.util.concurrent.Callable<List<External>>> callables = Lists.newArrayListWithExpectedSize(expandedLocations.length);
+        for (final ModuleLocation location : expandedLocations) {
+        	callables.add(new java.util.concurrent.Callable<List<External>>() {
+				
+				public List<External> call() throws Exception {
+					return workspace.act(new CheckOutTask(build,SubversionSCM.this, location, build.getTimestamp().getTime(), listener, env));
+				}
+			});
+        }
+        
+        List<Future<List<External>>> futures = service.invokeAll(callables);
+        
+        for (Future<List<External>> future : futures) {
+        	
+            try {
+				externals.addAll(future.get());
+			} catch (ExecutionException e) {
+				throw new IOException2(e);
+			}
+            // olamy: remove null check as it causes test failure
             // see https://github.com/jenkinsci/subversion-plugin/commit/de23a2b781b7b86f41319977ce4c11faee75179b#commitcomment-1551273
             /*if ( externalsFound != null ){
                 externals.addAll(externalsFound);
@@ -857,6 +895,37 @@ public class SubversionSCM extends SCM implements Serializable {
         }
 
         return externals;
+    }
+    
+    private static class CurrentThreadExecutorService extends AbstractExecutorService {
+
+    	private boolean terminated = false;
+    	
+		public void shutdown() {
+			terminated = true;
+		}
+
+		public List<Runnable> shutdownNow() {
+			terminated = true;
+			return Collections.emptyList();
+		}
+
+		public boolean isShutdown() {
+			return terminated;
+		}
+
+		public boolean isTerminated() {
+			return terminated;
+		}
+
+		public boolean awaitTermination(long timeout, TimeUnit unit)
+				throws InterruptedException {
+			return true;
+		}
+
+		public void execute(Runnable command) {
+			command.run();
+		}
     }
 
     private synchronized Map<AbstractProject, List<External>> getProjectExternalsCache() {
