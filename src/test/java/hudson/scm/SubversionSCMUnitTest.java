@@ -13,6 +13,7 @@ import hudson.model.AbstractBuild;
 import hudson.remoting.VirtualChannel;
 import hudson.scm.SubversionSCM.ModuleLocation;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,7 +43,7 @@ public class SubversionSCMUnitTest {
         
         FilePath resolvedRoot = scm._getModuleRoot(root, "$BRANCH/someMorePath", envVars);
 
-        String expected = String.format("root%stest/someMorePath", System.getProperty("file.separator"));
+        String expected = String.format("root%stest%ssomeMorePath", File.separator, File.separator);
 
         Assert.assertEquals(expected, resolvedRoot.getRemote());
     }
