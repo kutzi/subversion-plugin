@@ -39,6 +39,7 @@ import hudson.Functions;
 import hudson.Launcher;
 import hudson.Util;
 import hudson.XmlFile;
+import hudson.console.ConsoleNote;
 import hudson.model.BuildListener;
 import hudson.model.Item;
 import hudson.model.TaskListener;
@@ -65,6 +66,7 @@ import hudson.scm.subversion.UpdaterException;
 import hudson.scm.subversion.WorkspaceUpdater;
 import hudson.scm.subversion.WorkspaceUpdater.UpdateTask;
 import hudson.scm.subversion.WorkspaceUpdaterDescriptor;
+import hudson.util.AbstractTaskListener;
 import hudson.util.EditDistance;
 import hudson.util.FormValidation;
 import hudson.util.IOException2;
@@ -72,14 +74,17 @@ import hudson.util.LogTaskListener;
 import hudson.util.MultipartFormDataParser;
 import hudson.util.Scrambler;
 import hudson.util.Secret;
+import hudson.util.StreamTaskListener;
 import hudson.util.TimeUnit2;
 import hudson.util.XStream2;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.io.OutputStream;
@@ -862,14 +867,19 @@ public class SubversionSCM extends SCM implements Serializable {
         	 listener.getLogger().println("checking out/updating with " + numberOfExecutors + " parallel threads");
         } else {
         	 service = new CurrentThreadExecutorService();
+        	 //listener.getLogger().println("checking out/updating in current thread.");
         }
+        
+        // TODO: logging via the listener can be garbled, because of concurrent access.
+        // Should we synchronize access to it? Does it even work with the remoted listeners?
+        @SuppressWarnings("deprecation")
+		final TaskListener syncedListener = new StreamTaskListener(new SynchronizedPrintStream(listener.getLogger()));
         
         List<java.util.concurrent.Callable<List<External>>> callables = Lists.newArrayListWithExpectedSize(expandedLocations.length);
         for (final ModuleLocation location : expandedLocations) {
         	callables.add(new java.util.concurrent.Callable<List<External>>() {
-				
 				public List<External> call() throws Exception {
-					return workspace.act(new CheckOutTask(build,SubversionSCM.this, location, build.getTimestamp().getTime(), listener, env));
+					return workspace.act(new CheckOutTask(build,SubversionSCM.this, location, build.getTimestamp().getTime(), syncedListener, env));
 				}
 			});
         }
@@ -889,6 +899,64 @@ public class SubversionSCM extends SCM implements Serializable {
         service.shutdownNow();
 
         return externals;
+    }
+    
+    
+    /**
+     * {@link PrintStream} which is synchrinized on line level.
+     * 
+     * @author ckutz
+     */
+    private static class SynchronizedPrintStream extends PrintStream {
+
+		public SynchronizedPrintStream(OutputStream out) {
+			super(out);
+		}
+
+		@Override
+		public synchronized void println(boolean x) {
+			super.println(x);
+		}
+
+		@Override
+		public synchronized void println(char x) {
+			super.println(x);
+		}
+
+		@Override
+		public synchronized void println(int x) {
+			super.println(x);
+		}
+
+		@Override
+		public synchronized void println(long x) {
+			super.println(x);
+		}
+
+		@Override
+		public synchronized void println(float x) {
+			super.println(x);
+		}
+
+		@Override
+		public synchronized void println(double x) {
+			super.println(x);
+		}
+
+		@Override
+		public synchronized void println(char[] x) {
+			super.println(x);
+		}
+
+		@Override
+		public synchronized void println(String x) {
+			super.println(x);
+		}
+
+		@Override
+		public synchronized void println(Object x) {
+			super.println(x);
+		}
     }
     
     /**
