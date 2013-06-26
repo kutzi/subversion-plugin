@@ -870,8 +870,6 @@ public class SubversionSCM extends SCM implements Serializable {
         	 //listener.getLogger().println("checking out/updating in current thread.");
         }
         
-        // TODO: logging via the listener can be garbled, because of concurrent access.
-        // Should we synchronize access to it? Does it even work with the remoted listeners?
         @SuppressWarnings("deprecation")
 		final TaskListener syncedListener = new StreamTaskListener(new SynchronizedPrintStream(listener.getLogger()));
         
