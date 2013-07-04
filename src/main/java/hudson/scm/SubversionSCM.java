@@ -871,15 +871,15 @@ public class SubversionSCM extends SCM implements Serializable {
         }
         
         @SuppressWarnings("deprecation")
-		final TaskListener syncedListener = new StreamTaskListener(new SynchronizedPrintStream(listener.getLogger()));
+        final TaskListener syncedListener = new StreamTaskListener(new SynchronizedPrintStream(listener.getLogger()));
         
         List<java.util.concurrent.Callable<List<External>>> callables = Lists.newArrayListWithExpectedSize(expandedLocations.length);
         for (final ModuleLocation location : expandedLocations) {
-        	callables.add(new java.util.concurrent.Callable<List<External>>() {
-				public List<External> call() throws Exception {
-					return workspace.act(new CheckOutTask(build,SubversionSCM.this, location, build.getTimestamp().getTime(), syncedListener, env));
-				}
-			});
+            callables.add(new java.util.concurrent.Callable<List<External>>() {
+                public List<External> call() throws Exception {
+                    return workspace.act(new CheckOutTask(build,SubversionSCM.this, location, build.getTimestamp().getTime(), syncedListener, env));
+                }
+            });
         }
         
         List<Future<List<External>>> futures = service.invokeAll(callables);
@@ -901,60 +901,60 @@ public class SubversionSCM extends SCM implements Serializable {
     
     
     /**
-     * {@link PrintStream} which is synchrinized on line level.
+     * {@link PrintStream} which is synchronized on line level.
      * 
      * @author ckutz
      */
     private static class SynchronizedPrintStream extends PrintStream {
 
-		public SynchronizedPrintStream(OutputStream out) {
-			super(out);
-		}
+        public SynchronizedPrintStream(OutputStream out) {
+            super(out);
+        }
 
-		@Override
-		public synchronized void println(boolean x) {
-			super.println(x);
-		}
-
-		@Override
-		public synchronized void println(char x) {
-			super.println(x);
-		}
-
-		@Override
-		public synchronized void println(int x) {
-			super.println(x);
-		}
-
-		@Override
-		public synchronized void println(long x) {
-			super.println(x);
-		}
-
-		@Override
-		public synchronized void println(float x) {
-			super.println(x);
-		}
-
-		@Override
-		public synchronized void println(double x) {
-			super.println(x);
-		}
-
-		@Override
-		public synchronized void println(char[] x) {
-			super.println(x);
-		}
-
-		@Override
-		public synchronized void println(String x) {
-			super.println(x);
-		}
-
-		@Override
-		public synchronized void println(Object x) {
-			super.println(x);
-		}
+        @Override
+        public synchronized void println(boolean x) {
+            super.println(x);
+        }
+    
+        @Override
+        public synchronized void println(char x) {
+            super.println(x);
+        }
+    
+        @Override
+        public synchronized void println(int x) {
+            super.println(x);
+        }
+    
+        @Override
+        public synchronized void println(long x) {
+            super.println(x);
+        }
+    
+        @Override
+        public synchronized void println(float x) {
+            super.println(x);
+        }
+    
+        @Override
+        public synchronized void println(double x) {
+            super.println(x);
+        }
+    
+        @Override
+        public synchronized void println(char[] x) {
+            super.println(x);
+        }
+    
+        @Override
+        public synchronized void println(String x) {
+            super.println(x);
+        }
+    
+        @Override
+        public synchronized void println(Object x) {
+            super.println(x);
+        }
     }
     
     /**
@@ -962,33 +962,33 @@ public class SubversionSCM extends SCM implements Serializable {
      */
     private static class CurrentThreadExecutorService extends AbstractExecutorService {
 
-    	private boolean terminated = false;
-    	
-		public void shutdown() {
-			terminated = true;
-		}
-
-		public List<Runnable> shutdownNow() {
-			terminated = true;
-			return Collections.emptyList();
-		}
-
-		public boolean isShutdown() {
-			return terminated;
-		}
-
-		public boolean isTerminated() {
-			return terminated;
-		}
-
-		public boolean awaitTermination(long timeout, TimeUnit unit)
-				throws InterruptedException {
-			return true;
-		}
-
-		public void execute(Runnable command) {
-			command.run();
-		}
+        private boolean terminated = false;
+        
+        public void shutdown() {
+            terminated = true;
+        }
+    
+        public List<Runnable> shutdownNow() {
+            terminated = true;
+            return Collections.emptyList();
+        }
+    
+        public boolean isShutdown() {
+            return terminated;
+        }
+    
+        public boolean isTerminated() {
+            return terminated;
+        }
+    
+        public boolean awaitTermination(long timeout, TimeUnit unit)
+                throws InterruptedException {
+            return true;
+        }
+    
+        public void execute(Runnable command) {
+            command.run();
+        }
     }
 
     private synchronized Map<AbstractProject, List<External>> getProjectExternalsCache() {
