@@ -46,5 +46,8 @@ THE SOFTWARE.
             checked="${descriptor.storeAuthToDisk}"
             title="${%Update default Subversion credentials cache after successful authentication}"
             help="/descriptor/hudson.scm.SubversionSCM/help/storeAuthToDisk"/>
+        <f:entry title="${%Read timeout (ms)}" help="/descriptor/hudson.scm.SubversionSCM/help/readTimeout">
+            <f:textbox name="svn.readTimeout" value="${descriptor.readTimeout}"/>
+        </f:entry>
     </f:section>
 </j:jelly>

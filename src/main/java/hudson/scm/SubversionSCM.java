@@ -1464,6 +1464,8 @@ public class SubversionSCM extends SCM implements Serializable {
         private String globalExcludedRevprop = null;
 
         private int workspaceFormat = SVNAdminAreaFactory.WC_FORMAT_14;
+        
+        private int readTimeout;
 
         /**
          * When set to true, repository URLs will be validated up to the first
@@ -1826,6 +1828,10 @@ public class SubversionSCM extends SCM implements Serializable {
         public boolean isStoreAuthToDisk() {
             return storeAuthToDisk;
         }
+        
+        public int getReadTimeout() {
+        	return readTimeout;
+        }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
@@ -1834,6 +1840,7 @@ public class SubversionSCM extends SCM implements Serializable {
             workspaceFormat = Integer.parseInt(req.getParameter("svn.workspaceFormat"));
             validateRemoteUpToVar = formData.containsKey("validateRemoteUpToVar");
             storeAuthToDisk = formData.containsKey("storeAuthToDisk");
+            readTimeout = formData.getInt("svn.readTimeout");
 
             // Save configuration
             save();
@@ -2062,13 +2069,18 @@ public class SubversionSCM extends SCM implements Serializable {
         protected SVNRepository getRepository(AbstractProject context, SVNURL repoURL) throws SVNException {
             SVNRepository repository = SVNRepositoryFactory.create(repoURL);
 
+            final int configuredReadTimeout = getReadTimeout();
             ISVNAuthenticationManager sam = createSvnAuthenticationManager(createAuthenticationProvider(context));
             sam = new FilterSVNAuthenticationManager(sam) {
-                // If there's no time out, the blocking read operation may hang forever, because TCP itself
-                // has no timeout. So always use some time out. If the underlying implementation gives us some
-                // value (which may come from ~/.subversion), honor that, as long as it sets some timeout value.
+            	// TODO: check that this is really called during checkout!
                 @Override
                 public int getReadTimeout(SVNRepository repository) {
+                	if (configuredReadTimeout != 0)
+                		return configuredReadTimeout;
+
+                    // If there's no time out, the blocking read operation may hang forever, because TCP itself
+                    // has no timeout. So always use some time out. If the underlying implementation gives us some
+                    // value (which may come from ~/.subversion), honor that, as long as it sets some timeout value.
                     int r = super.getReadTimeout(repository);
                     if(r<=0)    r = DEFAULT_TIMEOUT;
                     return r;
